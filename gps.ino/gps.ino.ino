@@ -4,12 +4,13 @@
 
 // NMEA reference manual: https://www.sparkfun.com/datasheets/GPS/NMEA%20Reference%20Manual-Rev2.1-Dec07.pdf
 
-// TX and RX pins to Arduino Uno
-int TXPin = 2;
-int RXPin = 3;
+// TX and RX pins to NodeMCU (or Arduino Uno)
+int TXPin = 14; // GPIO14 corresponds to D5 (Uno: 2)
+int RXPin = 12; // GPIO12 corresponds to D6 (Uno: 3)
 
 // baudrate of NEO-6M
 int GPSBaud = 9600;
+
 
 // software serial port called "gpsSerial"
 SoftwareSerial gpsSerial(TXPin, RXPin);
@@ -20,9 +21,11 @@ TinyGPSPlus gps;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  // Serial.begin(115200);
 
   // start software serial port
   gpsSerial.begin(GPSBaud);
+  //            Serial.begin(GPSBaud);
 
   // print headers for CSV file
   printHeaders();
@@ -30,9 +33,14 @@ void setup() {
 
 // put your main code here, to run repeatedly:
 void loop() {
-  
+
   while (gpsSerial.available() > 0) {
+    // while (Serial.available()) {
+
+    //Serial.println("in here2");
+
     if (gps.encode(gpsSerial.read())) {
+      // if (gps.encode(Serial.read())) {
       // displayInfo();
       printToCSV();
     }
@@ -41,8 +49,7 @@ void loop() {
     // over the software serial port, show a "No GPS detected" error
     if (millis() > 5000 && gps.charsProcessed() < 10) {
       Serial.println("No GPS detected");
-      while (true)
-        ;
+      while (true) {}
     }
   }
 }
@@ -154,7 +161,7 @@ void printToCSV() {
     Serial.print(",");
   }
 
-  if(gps.altitude.isValid()) {
+  if (gps.altitude.isValid()) {
     Serial.print(gps.altitude.meters());
     Serial.print('\n');
   } else {
