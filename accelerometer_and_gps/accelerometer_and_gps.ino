@@ -23,7 +23,7 @@ Adafruit_MPU6050 mpu;
 double accelX;
 double accelY;
 double accelZ;
-double accelRange;
+int accelRange;
 
 void setup() {
   accelerometerSetup();
@@ -135,7 +135,7 @@ void gpsLoop() {
 void printCSVHeaders() {
   Serial.begin(9600);
   Serial.print('\n');
-  Serial.println("Date,Time(UTC),Latitude,Longitude,Speed(km/h),Altitude(m),aX,aY,aZ");
+  Serial.println("Date,Time(UTC),Latitude,Longitude,Speed(km/h),Altitude(m),aX,aY,aZ,aRange(G)");
   Serial.flush();
 }
 
@@ -216,7 +216,8 @@ void printCSVValues() {
   Serial.print(accelY);
   Serial.print(",");
   Serial.print(accelZ);
-  //Serial.print(",");
+  Serial.print(",");
+  Serial.print(accelRange);
   Serial.print('\n');
 
 
