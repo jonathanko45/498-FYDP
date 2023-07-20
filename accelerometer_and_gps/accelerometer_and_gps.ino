@@ -10,11 +10,16 @@
 // gps object
 TinyGPSPlus gps;
 
-// software TX and RX pins to NodeMCU
-int TXPin = 14;  // GPIO14 corresponds to D5
-int RXPin = 12;  // GPIO
+// software TX and RX pins for gps
+int TXPin = 2;  // NodeMCU: GPIO14 corresponds to D5, UNO: 2
+int RXPin = 3;  // NodeMCU: GPIO12 corresponds to D?, UNO: 3
 
 SoftwareSerial gpsSerial(TXPin, RXPin);
+
+// GPS values
+double latCoordinate;
+double longCoordinate;
+double speed;
 
 // accelerometer object
 Adafruit_MPU6050 mpu;
@@ -34,6 +39,8 @@ void setup() {
 }
 
 void loop() {
+  checkSerialConnection();
+
   accelerometerLoop();
 
   gpsLoop();
@@ -79,6 +86,7 @@ void accelerometerSetup() {
   // Serial.println("");
   // delay(100);
   Serial.flush();
+  // Serial.end(); // not sure if this is needed
 }
 
 void gpsSetup() {
@@ -110,6 +118,7 @@ void accelerometerLoop() {
 
   // delay(500);
   Serial.flush();
+  // Serial.end(); // not sure if this is needed
 }
 
 void gpsLoop() {
@@ -118,7 +127,7 @@ void gpsLoop() {
 
     if (gps.encode(gpsSerial.read())) {
       // call function to print values in CSV format
-      printCSVValues();
+      printCSVValues9600();
     }
 
     // If 5000 milliseconds pass and there are no characters coming in
@@ -137,9 +146,30 @@ void printCSVHeaders() {
   Serial.print('\n');
   Serial.println("Date,Time(UTC),Latitude,Longitude,Speed(km/h),Altitude(m),aX,aY,aZ,aRange(G)");
   Serial.flush();
+  // Serial.end(); // not sure if this is needed
 }
 
-void printCSVValues() {
+void getGPSData() {
+  Serial.begin(9600);
+
+  if (gps.location.isValid()) {
+    latCoordinate = gps.location.lat();
+    longCoordinate = gps.location.lng();
+  } else {
+    latCoordinate = 360;
+    longCoordinate = 360;
+  }
+
+  if (gps.speed.isValid()) {
+    speed = gps.speed.kmph();
+  } else {
+    speed = 1234;
+  }
+
+  Serial.flush();
+}
+
+void printCSVValues9600() {
   Serial.begin(9600);
 
   // GPS values
@@ -151,7 +181,7 @@ void printCSVValues() {
     Serial.print(gps.date.year());
     Serial.print(",");
   } else {
-    Serial.print("date not valid");
+    Serial.print("DATENV");
     Serial.print(",");
   }
 
@@ -177,7 +207,7 @@ void printCSVValues() {
     Serial.print(gps.time.centisecond());
     Serial.print(",");
   } else {
-    Serial.print("time not valid");
+    Serial.print("TIMENV");
     Serial.print(",");
   }
 
@@ -188,9 +218,9 @@ void printCSVValues() {
     Serial.print(",");
   } else {
     // print for both lat and long columns
-    Serial.print("location not valid");
+    Serial.print("LATNV");
     Serial.print(",");
-    Serial.print("location not valid");
+    Serial.print("LONGNV");
     Serial.print(",");
   }
 
@@ -198,7 +228,7 @@ void printCSVValues() {
     Serial.print(gps.speed.kmph());
     Serial.print(",");
   } else {
-    Serial.print("speed not valid");
+    Serial.print("SPDNV");
     Serial.print(",");
   }
 
@@ -206,7 +236,7 @@ void printCSVValues() {
     Serial.print(gps.altitude.meters());
     Serial.print(",");
   } else {
-    Serial.print("altitude not valid");
+    Serial.print("ALTNV");
     Serial.print(",");
   }
 
@@ -223,4 +253,16 @@ void printCSVValues() {
 
 
   Serial.flush();
+  // Serial.end(); // not sure if this is needed
+}
+
+void printCSVValues115200() {
+}
+
+void checkSerialConnection() {
+  if (!Serial) {   //check if Serial is available... if not,
+    Serial.end();  // close serial port
+    delay(100);    //wait 100 millis
+    // Serial.begin(9600);  // reenable serial again
+  }
 }

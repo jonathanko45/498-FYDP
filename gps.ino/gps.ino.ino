@@ -5,8 +5,8 @@
 // NMEA reference manual: https://www.sparkfun.com/datasheets/GPS/NMEA%20Reference%20Manual-Rev2.1-Dec07.pdf
 
 // TX and RX pins to NodeMCU (or Arduino Uno)
-int TXPin = 14; // GPIO14 corresponds to D5 (Uno: 2)
-int RXPin = 12; // GPIO12 corresponds to D6 (Uno: 3)
+int TXPin = 2; // GPIO14 corresponds to D5 (Uno: 2)
+int RXPin = 3; // GPIO12 corresponds to D6 (Uno: 3)
 
 // baudrate of NEO-6M
 int GPSBaud = 9600;
