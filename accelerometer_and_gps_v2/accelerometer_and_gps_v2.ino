@@ -28,8 +28,8 @@ int second;
 Adafruit_MPU6050 mpu;
 
 // I2C on NodeMCU:
-// SCL: GPIO5 corresponds to D1
-// SDA: GPIO4 corresponds to D2
+// SCL:
+// SDA: 
 
 // acelerometer values
 double accelX;
@@ -48,8 +48,12 @@ void setup() {
 void loop() {
   checkSerialConnection();
 
+  // config 1
   accelerometerLoop();
   gpsLoop();
+
+  // config 2
+  // gpsLoop2();
 
   delay(100);
 }
@@ -63,7 +67,7 @@ void accelerometerSetup() {
 
   // Try to initialize!
   if (!mpu.begin()) {
-    // Serial.println("Failed to find MPU6050 chip");
+    Serial.println("Failed to find MPU6050 chip");
     while (1) {
       delay(10);
     }
@@ -145,6 +149,23 @@ void gpsLoop() {
       }
     }
   }
+
+}
+
+void gpsLoop2() {
+
+  if (gps.encode(gpsSerial.read())) {
+    getGPSData();
+  } else {
+    hour = 88;
+    minute = 88;
+    second = 88;
+    latCoordinate = 350;
+    longCoordinate = 350;
+    speed = 1111;
+  }
+
+  printCSVValues115200();
 }
 
 void printCSVHeaders() {
@@ -153,6 +174,43 @@ void printCSVHeaders() {
   Serial.println("Date,Time(UTC),Latitude,Longitude,Speed(km/h),Altitude(m),aX,aY,aZ,aRange(G)");
   Serial.flush();
   // Serial.end(); // not sure if this is needed
+}
+
+void printCSVHeaders2() {
+  Serial.begin(115200);
+  Serial.print('\n');
+  Serial.println("Time(UTC),Latitude,Longitude,Speed(km/h),aX,aY,aZ");
+  Serial.flush();
+}
+
+void getGPSData() {
+  Serial.begin(9600);
+
+  if (gps.time.isValid()) {
+    hour = gps.time.hour();
+    minute = gps.time.minute();
+    second = gps.time.second();
+  } else {
+    hour = 99;
+    minute = 99;
+    second = 99;
+  }
+
+  if (gps.location.isValid()) {
+    latCoordinate = gps.location.lat();
+    longCoordinate = gps.location.lng();
+  } else {
+    latCoordinate = 360;
+    longCoordinate = 360;
+  }
+
+  if (gps.speed.isValid()) {
+    speed = gps.speed.kmph();
+  } else {
+    speed = 1234;
+  }
+
+  Serial.flush();
 }
 
 void printCSVValues9600() {
@@ -236,8 +294,51 @@ void printCSVValues9600() {
   Serial.print(accelRange);
   Serial.print('\n');
 
+
+
   Serial.flush();
   // Serial.end(); // not sure if this is needed
+}
+
+void printCSVValues115200() {
+
+  Serial.begin(115200);
+
+  if (hour < 10) {
+    Serial.print(F("0"));
+  }
+  Serial.print(hour);
+  Serial.print(":");
+  if (minute < 10) {
+    Serial.print(F("0"));
+  }
+  Serial.print(minute);
+  Serial.print(":");
+  if (second < 10) {
+    Serial.print(F("0"));
+  }
+  Serial.print(second);
+  Serial.print(",");
+
+  Serial.print(latCoordinate);
+  Serial.print(",");
+  Serial.print(longCoordinate);
+  Serial.print(",");
+
+  Serial.print(speed);
+  Serial.print(",");
+
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  Serial.print(a.acceleration.x);
+  Serial.print(",");
+  Serial.print(a.acceleration.y);
+  Serial.print(",");
+  Serial.print(a.acceleration.z);
+  Serial.print('\n');
+
+  Serial.flush();
 }
 
 void checkSerialConnection() {

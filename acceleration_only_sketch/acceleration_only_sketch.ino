@@ -38,6 +38,7 @@ void setup(void) {
   }
 
   Serial.println("");
+  printCSVHeaders();
   delay(100);
 }
 
@@ -48,13 +49,25 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   /* Print out the values */
-  Serial.print(" X: ");
+  // Serial.print(" X: ");
   Serial.print(a.acceleration.x);
-  Serial.print(", Y: ");
+  Serial.print(",");
+  // Serial.print(", Y: ");
   Serial.print(a.acceleration.y);
-  Serial.print(", Z: ");
+  Serial.print(",");
+  // Serial.print(", Z: ");
   Serial.print(a.acceleration.z);
-  Serial.println(" m/s^2");
+  Serial.print('\n');
+  // Serial.println(" m/s^2");
 
-  delay(500);
+  delay(100);
+}
+
+void printCSVHeaders() {
+  Serial.print("aX");
+  Serial.print(",");
+  Serial.print("aY");
+  Serial.print(",");
+  Serial.print("aZ");
+  Serial.print('\n');
 }
