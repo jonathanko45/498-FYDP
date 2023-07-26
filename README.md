@@ -6,5 +6,5 @@ The objective of AutoGlide is to automate the adjustable dampening of traditiona
 ### To-do
 
 - accelerometer_and_gps sketch should be able to be able to print at the rate of the accelerometer, instead of the GPS 
--- maybe store the "new" GPS values when the GPS is actually updated
--- maybe use "if(gps.speedisUpdated())" instead of "if(gps.encode(gpsSerial.read()))"
+  - maybe store the "new" GPS values when the GPS is actually updated
+  - maybe use "if(gps.speedisUpdated())" instead of "if(gps.encode(gpsSerial.read()))"
