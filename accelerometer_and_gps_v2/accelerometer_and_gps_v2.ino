@@ -1,3 +1,5 @@
+// This sketch was created in hopes of solving the serial communication freezing issue
+
 // GPS library
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
