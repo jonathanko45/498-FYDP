@@ -11,8 +11,8 @@
 TinyGPSPlus gps;
 
 // software TX and RX pins for gps
-int TXPin = 14;  // NodeMCU: GPIO14 corresponds to D5, UNO: 2
-int RXPin = 12;  // NodeMCU: GPIO12 corresponds to D6, UNO: 3
+int TXPin = 2;  // NodeMCU: GPIO14 corresponds to D5, UNO: 2
+int RXPin = 3;  // NodeMCU: GPIO12 corresponds to D6, UNO: 3
 
 SoftwareSerial gpsSerial(TXPin, RXPin);
 
@@ -30,6 +30,10 @@ Adafruit_MPU6050 mpu;
 // I2C on NodeMCU:
 // SCL: GPIO5 corresponds to D1
 // SDA: GPIO4 corresponds to D2
+
+// I2C on Uno:
+// SCL: D19
+// SDA: D18
 
 // acelerometer values
 double accelX;
