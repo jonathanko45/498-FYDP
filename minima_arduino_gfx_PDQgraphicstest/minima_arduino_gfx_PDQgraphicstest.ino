@@ -1,6 +1,6 @@
 /*******************************************************************************
- * Modified from HelloWorld example of Arduino_GFX
- * run on Minima + 480x320 ILI9488 SPI TFT
+ * Modified from PDQgrphicstest example of Arduino_GFX.
+ * Run on Minima + 480x320 ILI9488 SPI TFT.
  ******************************************************************************/
 #include <Arduino_GFX_Library.h>
 
