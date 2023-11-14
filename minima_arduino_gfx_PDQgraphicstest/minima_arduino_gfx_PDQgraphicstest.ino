@@ -21,7 +21,6 @@ Arduino_DataBus *bus = new Arduino_HWSPI(TFT_DC, TFT_CS);  // UNO
 /* More display class: https://github.com/moononournation/Arduino_GFX/wiki/Display-Class */
 Arduino_GFX *gfx = new Arduino_ILI9488_18bit(bus, TFT_RESET, 3 /* rotation */, false /* IPS */);
 
-
 /*******************************************************************************
  * End of Arduino_GFX setting
  ******************************************************************************/
