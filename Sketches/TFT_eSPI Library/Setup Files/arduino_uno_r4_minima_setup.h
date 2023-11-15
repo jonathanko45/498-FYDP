@@ -298,11 +298,11 @@
 
 // ######       Arduino Uno R4 Minima        ######
 #define TFT_CS 10    //D10 or SS
-#define TFT_RESET 4  //D4
+#define TFT_RST 4  //D4
 #define TFT_DC 5     //D5
 #define TFT_MOSI 11  //D11/MOSI
-#define TFT_SCK 13   //D13/SCK
-#define TFT_LED 3    //GPIO3
+#define TFT_SCLK 13   //D13/SCK
+#define TFT_BL 3    //GPIO3
 #define TFT_MISO -1  // not used for TFT
 
 #define GFX_BL TFT_LED  // backlight pin
