@@ -11,8 +11,8 @@
 TinyGPSPlus gps;
 
 // software TX and RX pins for gps
-int TXPin = 8;  // NodeMCU: GPIO14 corresponds to D5, UNO: 8
-int RXPin = 9;  // NodeMCU: GPIO12 corresponds to D6, UNO: 9
+int TXPin = 8;  // NodeMCU: GPIO14 corresponds to D5, UNO: D8
+int RXPin = 9;  // NodeMCU: GPIO12 corresponds to D6, UNO: D9
 
 SoftwareSerial gpsSerial(TXPin, RXPin);
 
