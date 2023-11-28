@@ -74,6 +74,7 @@ static inline uint32_t micros_start() {
 }
 
 void loop(void) {
+  Serial.println("Arduino_GFX PDQgraphicstest example!");
   Serial.println(F("Benchmark\tmicro-secs"));
 
   int32_t usecFillScreen = testFillScreen();
