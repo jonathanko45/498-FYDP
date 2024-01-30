@@ -359,8 +359,12 @@ void printCSVValues9600() {
 //main loop variables
 int8_t profile_num = 1; //1 to 3
 int8_t arrow_pos = 1; //1 to 4
-int8_t editAngleNum = 0; //1 to 5, 5 is save
-int display_angle[4] = {0, 0, 0, 0};
+int8_t editAngleNum = 0; //1 to 5, 5 is save, 0 is off
+int display_angle[3][4] = {
+                          {0,0,0,0},
+                          {0,0,0,0},
+                          {0,0,0,0}
+                          };
 boolean buttonPress = false;
 boolean save = false;
 boolean editAngle = false;
@@ -372,28 +376,11 @@ int dataNumber = 0;
 boolean newData = false;
 
 void loop(void) {
-  buttonPress = false;
   accelerometerLoop(); //accelerometer data
   recvWithEndMarker(); //take input
   showNewNumber(); //update input values
 
   int32_t usecmainScreen = mainScreen();
-
-  if (buttonPress == true) {
-    if (arrow_pos <= 3) {
-      profile_num = arrow_pos;
-    }
-    else if (arrow_pos == 4 && editAngleNum == 0){
-      save = true;
-      editAngleNum = 1;
-    } else if (editAngleNum != 0) {
-      editAngle = true;
-    }
-    refresh();
-  }
-
-
-  //delay(10);
 
   //CAN SEND
   /*
@@ -484,22 +471,33 @@ void showNewNumber() {
     Serial.print("Data as Number ... ");
     Serial.println(dataNumber);
     
-    if (dataNumber == 0){
-      buttonPress = true;
-    } else if (editAngle == true && editAngleNum <= 4) {
+    if (dataNumber == 0){ //0 for button press
+      if (arrow_pos <= 3) { //profile selection
+        profile_num = arrow_pos;
+      } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
+        save = true;
+        editAngleNum = 1;
+      } else if ((editAngleNum >= 1 && editAngleNum <= 4) && editAngle == false) { //turning on edit angle mode
+        editAngle = true;
+      } else if (editAngle == true && editAngleNum <= 4){ //turning off edit angle mode
+        editAngle = false;
+      } else if (editAngleNum == 5) { //turning off edit mode
+        save = false;
+        editAngleNum = 0;
+        //call to CAN function to change the angles if they are different
+      }
+    } else if (editAngle == true && editAngleNum <= 4) { //0 to 100 for angle
       if (dataNumber > 100 || dataNumber < 0){
         Serial.print("Bad angle");
       } else {
-        display_angle[editAngleNum - 1] = dataNumber;
-        refresh();
+        display_angle[profile_num - 1][editAngleNum - 1] = dataNumber;
       }
-    } else if (editAngleNum != 0) {
+    } else if (editAngleNum != 0) { //1 to 4 for angle or 5 for save
       editAngleNum = dataNumber;
-      refresh();
-    } else {
+    } else { //1 to 4 for profiles
       arrow_pos = dataNumber;
-      refresh();
     }
+    refresh();
     newData = false;
   }
 }
@@ -546,8 +544,9 @@ int32_t refresh() {
     gfx->fillRect(260, 200, 22, 80, BLACK);
   }
 
-  gfx->fillRect(80, 66, 64, 170, BLACK); //edit arrows
+  gfx->fillRect(80, 66, 64, 170, BLACK); //edit gauge arrows
   gfx->fillRect(290, 290, 50, 22, BLACK); //edit-save
+  gfx->fillRect(260, 280, 22, 26, BLACK); //edit-save arrow
 
   //guages
   gfx->fillRect(6, 40, 68, 60, BLACK);
@@ -580,7 +579,7 @@ int32_t mainScreen() {
   gfx->print(F("PROFILE 3 "));
 
   gfx->setCursor(290, 290);
-  if (save == false) {
+  if (!save) {
     gfx->print(F("EDIT"));
   } else {
     gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
@@ -600,27 +599,34 @@ int32_t mainScreen() {
 
   gfx->setTextSize(1);
   gfx->setCursor(30, 80);
-  gfx->print(display_angle[0]);
+  gfx->print(display_angle[profile_num - 1][0]);
   gfx->println(F("%"));
 
   gfx->setCursor(174, 80);
-  gfx->print(display_angle[1]);
+  gfx->print(display_angle[profile_num - 1][1]);
   gfx->println(F("%"));
 
   gfx->setCursor(30, 220);
-  gfx->print(display_angle[2]);
+  gfx->print(display_angle[profile_num - 1][2]);
   gfx->println(F("%"));
 
   gfx->setCursor(174, 220);
-  gfx->print(display_angle[3]);
+  gfx->print(display_angle[profile_num - 1][3]);
   gfx->println(F("%"));
 
+  if (editAngle){
+    gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
+  }
   gfx->setTextSize(3);
   if (editAngleNum == 1 || editAngleNum == 3){
     gfx->setCursor(80, 66  + (editAngleNum - 1) * 70);
     gfx->print(F("<-"));
   } else if (editAngleNum == 2 || editAngleNum == 4) {
     gfx->setCursor(110, 66  + (editAngleNum - 2) * 70);
+    gfx->print(F("->"));
+  } else if (editAngleNum == 5) {
+    gfx->setTextSize(2);
+    gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
     gfx->print(F("->"));
   }
 
@@ -630,7 +636,6 @@ int32_t mainScreen() {
   gfx->fillRect(260, 20, 150, 40, BLACK);
 
   gfx->setCursor(260, 20);
-  //gfx->print(F("120"));
   gfx->print(speed, 2);
 
   gfx->fillRect(260, 80, 150, 40, BLACK);
@@ -638,17 +643,19 @@ int32_t mainScreen() {
   gfx->setCursor(260, 80);
   gfx->print(-1*accelY, 2);
 
-  gfx->setTextSize(2);
-  gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
-  gfx->print(F("->"));
+  if (!save){
+    gfx->setTextSize(2);
+    gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
+    gfx->print(F("->"));
+  }
 
   //390 - 150 = 240
   //240 div by 30 = 8 degree sections
   //fillArc       ( x, y, r0, r1, angle0, angle1, color);
-  gfx->fillArc(40, 80, 33, 30, 150, 390, gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(40, 220, 33, 30, 150, 390, gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(184, 80, 33, 30, 150, 390, gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(184, 220, 33, 30, 150, 390, gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(40, 80, 33, 30, 150, 390 * (display_angle[profile_num - 1][0] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(184, 80, 33, 30, 150, 390 * (display_angle[profile_num - 1][1] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(40, 220, 33, 30, 150, 390 * (display_angle[profile_num - 1][2] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(184, 220, 33, 30, 150, 390 * (display_angle[profile_num - 1][3] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
 
 
   return micros() - start;
