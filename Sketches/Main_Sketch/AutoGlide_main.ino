@@ -474,6 +474,7 @@ void showNewNumber() {
     if (dataNumber == 0){ //0 for button press
       if (arrow_pos <= 3) { //profile selection
         profile_num = arrow_pos;
+        //call to CAN function to change the angles if they are different
       } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
         save = true;
         editAngleNum = 1;
@@ -493,10 +494,16 @@ void showNewNumber() {
         display_angle[profile_num - 1][editAngleNum - 1] = dataNumber;
       }
     } else if (editAngleNum != 0) { //1 to 4 for angle or 5 for save
-      editAngleNum = dataNumber;
-    } else { //1 to 4 for profiles
+      if (editAngleNum <= 0 || editAngleNum >= 6){
+        Serial.print("Bad angle");
+      } else {
+        editAngleNum = dataNumber;
+      }
+    } else if (dataNumber >= 1 || dataNumber <= 4) { //1 to 4 for profiles
       arrow_pos = dataNumber;
-    }
+    } else {
+      Serial.print("Bad input");
+    } 
     refresh();
     newData = false;
   }
@@ -649,13 +656,13 @@ int32_t mainScreen() {
     gfx->print(F("->"));
   }
 
-  //390 - 150 = 240
+  //390 end - 150 start = 240
   //240 div by 30 = 8 degree sections
   //fillArc       ( x, y, r0, r1, angle0, angle1, color);
-  gfx->fillArc(40, 80, 33, 30, 150, 390 * (display_angle[profile_num - 1][0] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(184, 80, 33, 30, 150, 390 * (display_angle[profile_num - 1][1] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(40, 220, 33, 30, 150, 390 * (display_angle[profile_num - 1][2] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->fillArc(184, 220, 33, 30, 150, 390 * (display_angle[profile_num - 1][3] / 100.00), gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(40, 80, 33, 30, 150, 150 + (display_angle[profile_num - 1][0] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(184, 80, 33, 30, 150, 150 + (display_angle[profile_num - 1][1] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(40, 220, 33, 30, 150, 150 + (display_angle[profile_num - 1][2] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
+  gfx->fillArc(184, 220, 33, 30, 150, 150 + (display_angle[profile_num - 1][3] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
 
 
   return micros() - start;
