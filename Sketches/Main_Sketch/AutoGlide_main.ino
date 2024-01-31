@@ -99,14 +99,36 @@ double accelZ;
 int accelRange;
 
 /*******************************************************************************
-*/
+ * Rotary Encoder 
+ ******************************************************************************/
+// Arduino and KY-040 module
+int encoderPinA = 3; // CLK pin
+int encoderPinB = 2; // DT pin
+int encoderBtn = 0; // SW pin
+int count = 0;
+int encoderPinA_prev;
+int encoderPinA_value;
+boolean bool_CW;
 
+unsigned long startMillis; 
+unsigned long currentMillis;
+
+
+/*******************************************************************************
+ * Rotary interrupt encoder 
+ ******************************************************************************/
+
+
+int counter=0;
+String dir="";
+unsigned long last_run=0;
+
+/*******************************************************************************
+*/
 
 void setup() {
   Serial.begin(115200);
-  // Serial.setDebugOutput(true);
-  // while(!Serial);
-  Serial.println("Arduino_GFX PDQgraphicstest example!");
+  startMillis = millis();
 
 #ifdef GFX_EXTRA_PRE_INIT
   GFX_EXTRA_PRE_INIT();
@@ -123,7 +145,7 @@ void setup() {
     pinMode(GFX_BL, OUTPUT);
     digitalWrite(GFX_BL, HIGH);
   #endif
-  background();
+  gfx->fillScreen(BLACK);
 
   //CAN setup
   /*
@@ -178,6 +200,19 @@ void setup() {
   //gpsSerial.begin(9600);
   //GPS setup end
   printCSVHeaders();
+
+  //encoder setup
+  pinMode (encoderPinA, INPUT);
+  pinMode (encoderPinB, INPUT);
+  pinMode(encoderBtn, INPUT_PULLUP);
+  encoderPinA_prev = digitalRead(encoderPinA);
+
+  /*
+  attachInterrupt(digitalPinToInterrupt(encoderBtn), buttonPressInt, RISING);
+  attachInterrupt(digitalPinToInterrupt(encoderPinB), encoderLoop, FALLING);
+  */
+
+  attachInterrupt(digitalPinToInterrupt(encoderPinA),  shaft_moved, FALLING);
 }
 
 static inline uint32_t micros_start() __attribute__((always_inline));
@@ -220,30 +255,16 @@ void UpdatePos() {
 
 
 void accelerometerLoop() {
-  Serial.begin(115200);
   /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-
-  /* Print out the values 
-  Serial.print("Acceleration X: ");
-  Serial.print(a.acceleration.x);
-  Serial.print(", Y: ");
-  Serial.print(a.acceleration.y);
-  Serial.print(", Z: ");
-  Serial.print(a.acceleration.z);
-  Serial.println(" m/s^2");
-  Serial.println("");
-  */
 
   // store the values
   accelX = a.acceleration.x;
   accelY = a.acceleration.y;
   accelZ = a.acceleration.z;
 
-  // delay(500);
   Serial.flush();
-  // Serial.end(); // not sure if this is needed
 }
 
 void gpsLoop() {
@@ -376,12 +397,21 @@ int dataNumber = 0;
 boolean newData = false;
 
 void loop(void) {
+  //encoderLoop();
+  
+
   accelerometerLoop(); //accelerometer data
-  recvWithEndMarker(); //take input
-  showNewNumber(); //update input values
 
-  int32_t usecmainScreen = mainScreen();
+  //recvWithEndMarker(); //take input serial
+  //showNewNumber(); //update input values
 
+  /*
+  currentMillis = millis(); 
+  if (currentMillis - startMillis >= 500) {
+    mainScreen();
+    startMillis = currentMillis; 
+  }*/
+  
   //CAN SEND
   /*
   if(Serial.available()){
@@ -441,6 +471,24 @@ void loop(void) {
   */
 }
 
+void shaft_moved(){
+  if (millis()-last_run>5){
+    if (digitalRead(encoderPinB)==1){
+      counter++;
+      dir="CW";
+      }
+    if (digitalRead(encoderPinB)==0){
+      counter--;  
+      dir="CCW";}
+    last_run=millis();
+  }
+  Serial.print("counter : ");
+  Serial.print(counter);
+  Serial.print("  direction : ");
+  Serial.println(dir); 
+}
+
+
 void recvWithEndMarker() {
   static byte ndx = 0;
   char endMarker = '\n';
@@ -461,6 +509,10 @@ void recvWithEndMarker() {
       newData = true;
     }
   }
+}
+
+void buttonPressInt() {
+  Serial.println("Button Pressed");
 }
 
 void showNewNumber() {
@@ -509,30 +561,9 @@ void showNewNumber() {
   }
 }
 
-void serialOut(const __FlashStringHelper *item, int32_t v, uint32_t d, bool clear) {
-  Serial.print(item);
-  if (v < 0) {
-    Serial.println(F("N/A"));
-  } else {
-    Serial.println(v);
-  }
-  delay(d);
-  if (clear) {
-    gfx->fillScreen(BLACK);
-  }
-}
-
-int32_t background() {
-  uint32_t start = micros_start();
-  gfx->fillScreen(BLACK);
-  return micros() - start;
-}
-
-
 //do some work to make it so only refreshes the thing being changed
 //will make it much nicer
-int32_t refresh() {
-  uint32_t start = micros_start();
+void refresh() {
   gfx->fillRect(156, 280, 20, 20, BLACK); //profile
 
   //gfx->fillRect(260, 200, 22, 120, BLACK); //arrow all
@@ -560,12 +591,9 @@ int32_t refresh() {
   gfx->fillRect(150, 40, 68, 60, BLACK);
   gfx->fillRect(6, 180, 68, 60, BLACK);
   gfx->fillRect(150, 180, 68, 60, BLACK);
-
-  return micros() - start;
 }
 
-int32_t mainScreen() {
-  uint32_t start = micros_start();
+void mainScreen() {
 
   //gfx->setFont(u8g2_font_Pixellari_tu);
 
@@ -663,7 +691,4 @@ int32_t mainScreen() {
   gfx->fillArc(184, 80, 33, 30, 150, 150 + (display_angle[profile_num - 1][1] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
   gfx->fillArc(40, 220, 33, 30, 150, 150 + (display_angle[profile_num - 1][2] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
   gfx->fillArc(184, 220, 33, 30, 150, 150 + (display_angle[profile_num - 1][3] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
-
-
-  return micros() - start;
 }
