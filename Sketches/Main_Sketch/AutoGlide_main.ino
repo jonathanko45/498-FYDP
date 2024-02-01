@@ -102,33 +102,18 @@ int accelRange;
  * Rotary Encoder 
  ******************************************************************************/
 // Arduino and KY-040 module
-int encoderPinA = 3; // CLK pin
-int encoderPinB = 2; // DT pin
-int encoderBtn = 0; // SW pin
-int count = 0;
-int encoderPinA_prev;
-int encoderPinA_value;
-boolean bool_CW;
-
-unsigned long startMillis; 
-unsigned long currentMillis;
-
-
-/*******************************************************************************
- * Rotary interrupt encoder 
- ******************************************************************************/
-
-
-int counter=0;
-String dir="";
-unsigned long last_run=0;
+int encoderCLK = 3; // CLK pin
+int encoderDT = 2; // DT pin
+int encoderSW = 0; // SW pin
+int encoderCLK_prev;
+int encoderCLK_value;
+unsigned long last_run = 0;
 
 /*******************************************************************************
 */
 
 void setup() {
   Serial.begin(115200);
-  startMillis = millis();
 
 #ifdef GFX_EXTRA_PRE_INIT
   GFX_EXTRA_PRE_INIT();
@@ -202,25 +187,12 @@ void setup() {
   printCSVHeaders();
 
   //encoder setup
-  pinMode (encoderPinA, INPUT);
-  pinMode (encoderPinB, INPUT);
-  pinMode(encoderBtn, INPUT_PULLUP);
-  encoderPinA_prev = digitalRead(encoderPinA);
-
-  /*
-  attachInterrupt(digitalPinToInterrupt(encoderBtn), buttonPressInt, RISING);
-  attachInterrupt(digitalPinToInterrupt(encoderPinB), encoderLoop, FALLING);
-  */
-
-  attachInterrupt(digitalPinToInterrupt(encoderPinA),  shaft_moved, FALLING);
-}
-
-static inline uint32_t micros_start() __attribute__((always_inline));
-static inline uint32_t micros_start() {
-  uint8_t oms = millis();
-  while ((uint8_t)millis() == oms)
-    ;
-  return micros();
+  pinMode (encoderCLK, INPUT);
+  pinMode (encoderDT, INPUT);
+  pinMode(encoderSW, INPUT_PULLUP);
+  encoderCLK_prev = digitalRead(encoderCLK);
+  attachInterrupt(digitalPinToInterrupt(encoderCLK), shaft_moved, FALLING);
+  attachInterrupt(digitalPinToInterrupt(encoderSW), buttonPressed, RISING);
 }
 
 //CAN RECEIVE
@@ -390,6 +362,13 @@ boolean buttonPress = false;
 boolean save = false;
 boolean editAngle = false;
 
+//interupt variables
+volatile boolean interruptFlagArrow = false;
+volatile boolean interruptFlagGaugeArrow = false;
+volatile boolean interruptFlagGauge = false;
+volatile boolean interruptFlagProfile = false;
+volatile boolean interruptFlagEdit = false;
+
 //serial input variables
 const byte numChars = 32;
 char receivedChars[numChars];
@@ -397,20 +376,8 @@ int dataNumber = 0;
 boolean newData = false;
 
 void loop(void) {
-  //encoderLoop();
-  
-
   accelerometerLoop(); //accelerometer data
-
-  //recvWithEndMarker(); //take input serial
-  //showNewNumber(); //update input values
-
-  /*
-  currentMillis = millis(); 
-  if (currentMillis - startMillis >= 500) {
-    mainScreen();
-    startMillis = currentMillis; 
-  }*/
+  mainScreen();
   
   //CAN SEND
   /*
@@ -472,22 +439,81 @@ void loop(void) {
 }
 
 void shaft_moved(){
-  if (millis()-last_run>5){
-    if (digitalRead(encoderPinB)==1){
-      counter++;
-      dir="CW";
+  int8_t pauseLen = 300;
+  if (editAngle) { 
+    pauseLen = 5;
+  }
+  if (millis()-last_run > pauseLen){
+    if (digitalRead(encoderDT) == 0){ //CCW
+      if (editAngle && display_angle[profile_num - 1][editAngleNum - 1] <= 92) {
+        display_angle[profile_num - 1][editAngleNum - 1] += 8;
+        interruptFlagGauge = true;
+      } else if (editAngleNum && !editAngle) {
+        if (editAngleNum == 5) {
+          editAngleNum = 1;
+        } else {
+          editAngleNum++;
+        }
+        interruptFlagGaugeArrow = true;
+      } else if (!editAngleNum && !editAngle) {
+        if (arrow_pos == 4) {
+          arrow_pos = 1;
+        } else {
+          arrow_pos++;
+        }
+        interruptFlagArrow = true;
       }
-    if (digitalRead(encoderPinB)==0){
-      counter--;  
-      dir="CCW";}
+    }
+    if (digitalRead(encoderDT) == 1){ //CW
+      if (editAngle && display_angle[profile_num - 1][editAngleNum - 1] >= 8) {
+        display_angle[profile_num - 1][editAngleNum - 1] -= 8;
+        interruptFlagGauge = true;
+      } else if (editAngleNum && !editAngle) { 
+        if (editAngleNum == 1) {
+          editAngleNum = 5;
+        } else {
+          editAngleNum--;
+        }
+        interruptFlagGaugeArrow = true;
+      } else if (!editAngleNum && !editAngle) {
+        if (arrow_pos == 1) {
+          arrow_pos = 4;
+        } else {
+          arrow_pos--;
+        }
+        interruptFlagArrow = true;
+      }
+    }
     last_run=millis();
   }
-  Serial.print("counter : ");
-  Serial.print(counter);
-  Serial.print("  direction : ");
-  Serial.println(dir); 
 }
 
+void buttonPressed() {
+  if (millis()-last_run > 100){
+    Serial.println("Button Pressed");
+    if (arrow_pos <= 3) { //profile selection
+      profile_num = arrow_pos;
+      interruptFlagProfile = true;
+      interruptFlagGauge = true;
+      //call to CAN function to change the angles if they are different
+    } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
+      save = true;
+      editAngleNum = 1;
+      interruptFlagEdit = true;
+      interruptFlagGaugeArrow = true;
+    } else if ((editAngleNum >= 1 && editAngleNum <= 4) && editAngle == false) { //turning on edit angle mode
+      editAngle = true;
+    } else if (editAngle == true && editAngleNum <= 4){ //turning off edit angle mode
+      editAngle = false;
+    } else if (editAngleNum == 5) { //turning off edit mode
+      save = false;
+      editAngleNum = 0;
+      interruptFlagEdit = true;
+      //call to CAN function to change the angles if they are different
+    }
+    last_run=millis();
+  }
+}
 
 void recvWithEndMarker() {
   static byte ndx = 0;
@@ -511,11 +537,7 @@ void recvWithEndMarker() {
   }
 }
 
-void buttonPressInt() {
-  Serial.println("Button Pressed");
-}
-
-void showNewNumber() {
+void serialInput() {
   if (newData == true) {
     dataNumber = 0;
     dataNumber = atoi(receivedChars);
@@ -556,16 +578,14 @@ void showNewNumber() {
     } else {
       Serial.print("Bad input");
     } 
-    refresh();
+    refreshSerial();
     newData = false;
   }
 }
 
-//do some work to make it so only refreshes the thing being changed
-//will make it much nicer
-void refresh() {
+//SERIAL ONLY
+void refreshSerial() {
   gfx->fillRect(156, 280, 20, 20, BLACK); //profile
-
   //gfx->fillRect(260, 200, 22, 120, BLACK); //arrow all
   if (arrow_pos == 1) {
     gfx->fillRect(260, 220, 22, 100, BLACK);
@@ -594,9 +614,7 @@ void refresh() {
 }
 
 void mainScreen() {
-
   //gfx->setFont(u8g2_font_Pixellari_tu);
-
   gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
 
   gfx->setTextSize(4);
@@ -613,6 +631,10 @@ void mainScreen() {
   gfx->setCursor(290, 260);
   gfx->print(F("PROFILE 3 "));
 
+  if (interruptFlagEdit) {
+    gfx->fillRect(290, 290, 50, 22, BLACK); //edit-save
+    interruptFlagEdit = false;
+  }
   gfx->setCursor(290, 290);
   if (!save) {
     gfx->print(F("EDIT"));
@@ -628,6 +650,10 @@ void mainScreen() {
   gfx->setCursor(420, 100);
   gfx->print(F("m/s"));
 
+  if (interruptFlagProfile) {
+    gfx->fillRect(156, 280, 20, 20, BLACK); //profile
+    interruptFlagProfile = false;
+  }
   gfx->setCursor(60, 280);
   gfx->print(F("PROFILE "));
   gfx->println(profile_num);
@@ -651,6 +677,11 @@ void mainScreen() {
 
   if (editAngle){
     gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
+  }
+  if (interruptFlagGaugeArrow) {
+    gfx->fillRect(80, 66, 64, 170, BLACK); //edit gauge arrows
+    gfx->fillRect(260, 280, 22, 26, BLACK); //edit-save arrow
+    interruptFlagGaugeArrow = false;
   }
   gfx->setTextSize(3);
   if (editAngleNum == 1 || editAngleNum == 3){
@@ -679,11 +710,45 @@ void mainScreen() {
   gfx->print(-1*accelY, 2);
 
   if (!save){
+    if (interruptFlagArrow) {
+      if (arrow_pos == 1) {
+        gfx->fillRect(260, 220, 22, 100, BLACK);
+      }
+      else if (arrow_pos == 2) {
+        gfx->fillRect(260, 200, 22, 26, BLACK);
+        gfx->fillRect(260, 250, 22, 80, BLACK);
+      } 
+      else if (arrow_pos == 3) {
+        gfx->fillRect(260, 200, 22, 50, BLACK);
+        gfx->fillRect(260, 280, 22, 26, BLACK);
+      }
+      else if (arrow_pos == 4) {
+        gfx->fillRect(260, 200, 22, 80, BLACK);
+      }
+      interruptFlagArrow = false;
+    }
     gfx->setTextSize(2);
     gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
     gfx->print(F("->"));
   }
 
+  if (interruptFlagGauge) {
+    if (editAngleNum == 1){
+      gfx->fillRect(6, 40, 68, 60, BLACK);
+    } else if (editAngleNum == 2) {
+      gfx->fillRect(150, 40, 68, 60, BLACK);
+    } else if (editAngleNum == 3) {
+      gfx->fillRect(6, 180, 68, 60, BLACK);
+    } else if (editAngleNum == 4) {
+      gfx->fillRect(150, 180, 68, 60, BLACK);
+    } else { //switching profile clear all
+      gfx->fillRect(6, 40, 68, 60, BLACK);
+      gfx->fillRect(150, 40, 68, 60, BLACK);
+      gfx->fillRect(6, 180, 68, 60, BLACK);
+      gfx->fillRect(150, 180, 68, 60, BLACK);
+    }
+    interruptFlagGauge = false;
+  }
   //390 end - 150 start = 240
   //240 div by 30 = 8 degree sections
   //fillArc       ( x, y, r0, r1, angle0, angle1, color);
