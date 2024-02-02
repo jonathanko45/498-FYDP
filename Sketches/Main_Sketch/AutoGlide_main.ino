@@ -30,11 +30,6 @@ Arduino_GFX *gfx = new Arduino_ILI9488_18bit(bus, TFT_RESET, 3 /* rotation */, f
 const int SPI_CS_PIN = 10;
 const int CAN_INT_PIN = 2;
 
-#ifdef CAN_2518FD
-#include "mcp2518fd_can.h"
-mcp2518fd CAN(SPI_CS_PIN); // Set CS pin
-#endif
-
 #ifdef CAN_2515
 #include "mcp2515_can.h"
 mcp2515_can CAN(SPI_CS_PIN); // Set CS pin
@@ -116,6 +111,13 @@ unsigned long last_run = 0;
 
 /*******************************************************************************
 */
+
+/*
+#include "Accel_and_GPS.h"
+#include "CAN_send.h"
+#include "CAN_receive.h"
+*/
+
 
 //gauge angle matrix
 int display_angle[3][4] = {
