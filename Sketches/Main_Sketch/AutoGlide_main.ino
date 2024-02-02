@@ -110,27 +110,40 @@ int encoderCLK_value;
 unsigned long last_run = 0;
 
 /*******************************************************************************
+ * EEPROM 
+ ******************************************************************************/
+#include <EEPROM.h>
+
+/*******************************************************************************
 */
+
+//gauge angle matrix
+int display_angle[3][4] = {
+                          {0,0,0,0},
+                          {0,0,0,0},
+                          {0,0,0,0}
+                          };
 
 void setup() {
   Serial.begin(115200);
 
-#ifdef GFX_EXTRA_PRE_INIT
-  GFX_EXTRA_PRE_INIT();
-#endif
-
   // Init Display
-  if (!gfx->begin())
-  // if (!gfx->begin(80000000)) /* specify data bus speed */
-  {
+  if (!gfx->begin()){
     Serial.println("gfx->begin() failed!");
   }
-
-  #ifdef GFX_BL
-    pinMode(GFX_BL, OUTPUT);
-    digitalWrite(GFX_BL, HIGH);
-  #endif
   gfx->fillScreen(BLACK);
+
+  for (int i = 0; i < 12; i++){
+    Serial.print("Address: ");
+    Serial.print(i);
+    Serial.print("  Value: ");
+    Serial.println(EEPROM.read(i));
+  }
+  for (int i = 0; i < 3; i++){ //iterate 0 -3 for profile number
+    for (int j = 0; j < 4; j++){ //iterate 0 - 4 for gauge number
+      display_angle[i][j] = EEPROM.read(i*4 + j);
+    }
+  }
 
   //CAN setup
   /*
@@ -353,12 +366,6 @@ void printCSVValues9600() {
 int8_t profile_num = 1; //1 to 3
 int8_t arrow_pos = 1; //1 to 4
 int8_t editAngleNum = 0; //1 to 5, 5 is save, 0 is off
-int display_angle[3][4] = {
-                          {0,0,0,0},
-                          {0,0,0,0},
-                          {0,0,0,0}
-                          };
-boolean buttonPress = false;
 boolean save = false;
 boolean editAngle = false;
 
@@ -369,11 +376,6 @@ volatile boolean interruptFlagGauge = false;
 volatile boolean interruptFlagProfile = false;
 volatile boolean interruptFlagEdit = false;
 
-//serial input variables
-const byte numChars = 32;
-char receivedChars[numChars];
-int dataNumber = 0;
-boolean newData = false;
 
 void loop(void) {
   accelerometerLoop(); //accelerometer data
@@ -510,107 +512,16 @@ void buttonPressed() {
       editAngleNum = 0;
       interruptFlagEdit = true;
       //call to CAN function to change the angles if they are different
+
+      //EEPROM write to commit data
+      for (int i = 0; i < 3; i++){ //iterate 0 -3 for profile number
+        for (int j = 0; j < 4; j++){ //iterate 0 - 4 for gauge number
+          EEPROM.write(i * 4 + j, display_angle[i][j]);
+        }
+      }
     }
     last_run=millis();
   }
-}
-
-void recvWithEndMarker() {
-  static byte ndx = 0;
-  char endMarker = '\n';
-  char rc;
-    
-  if (Serial.available() > 0) {
-    rc = Serial.read();
-    if (rc != endMarker) {
-      receivedChars[ndx] = rc;
-      ndx++;
-      if (ndx >= numChars) {
-        ndx = numChars - 1;
-      }
-    }
-    else {
-      receivedChars[ndx] = '\0'; // terminate the string
-      ndx = 0;
-      newData = true;
-    }
-  }
-}
-
-void serialInput() {
-  if (newData == true) {
-    dataNumber = 0;
-    dataNumber = atoi(receivedChars);
-
-    Serial.print("Data as Number ... ");
-    Serial.println(dataNumber);
-    
-    if (dataNumber == 0){ //0 for button press
-      if (arrow_pos <= 3) { //profile selection
-        profile_num = arrow_pos;
-        //call to CAN function to change the angles if they are different
-      } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
-        save = true;
-        editAngleNum = 1;
-      } else if ((editAngleNum >= 1 && editAngleNum <= 4) && editAngle == false) { //turning on edit angle mode
-        editAngle = true;
-      } else if (editAngle == true && editAngleNum <= 4){ //turning off edit angle mode
-        editAngle = false;
-      } else if (editAngleNum == 5) { //turning off edit mode
-        save = false;
-        editAngleNum = 0;
-        //call to CAN function to change the angles if they are different
-      }
-    } else if (editAngle == true && editAngleNum <= 4) { //0 to 100 for angle
-      if (dataNumber > 100 || dataNumber < 0){
-        Serial.print("Bad angle");
-      } else {
-        display_angle[profile_num - 1][editAngleNum - 1] = dataNumber;
-      }
-    } else if (editAngleNum != 0) { //1 to 4 for angle or 5 for save
-      if (editAngleNum <= 0 || editAngleNum >= 6){
-        Serial.print("Bad angle");
-      } else {
-        editAngleNum = dataNumber;
-      }
-    } else if (dataNumber >= 1 || dataNumber <= 4) { //1 to 4 for profiles
-      arrow_pos = dataNumber;
-    } else {
-      Serial.print("Bad input");
-    } 
-    refreshSerial();
-    newData = false;
-  }
-}
-
-//SERIAL ONLY
-void refreshSerial() {
-  gfx->fillRect(156, 280, 20, 20, BLACK); //profile
-  //gfx->fillRect(260, 200, 22, 120, BLACK); //arrow all
-  if (arrow_pos == 1) {
-    gfx->fillRect(260, 220, 22, 100, BLACK);
-  }
-  else if (arrow_pos == 2) {
-    gfx->fillRect(260, 200, 22, 26, BLACK);
-    gfx->fillRect(260, 250, 22, 80, BLACK);
-  } 
-  else if (arrow_pos == 3) {
-    gfx->fillRect(260, 200, 22, 50, BLACK);
-    gfx->fillRect(260, 280, 22, 26, BLACK);
-  }
-  else if (arrow_pos == 4) {
-    gfx->fillRect(260, 200, 22, 80, BLACK);
-  }
-
-  gfx->fillRect(80, 66, 64, 170, BLACK); //edit gauge arrows
-  gfx->fillRect(290, 290, 50, 22, BLACK); //edit-save
-  gfx->fillRect(260, 280, 22, 26, BLACK); //edit-save arrow
-
-  //guages
-  gfx->fillRect(6, 40, 68, 60, BLACK);
-  gfx->fillRect(150, 40, 68, 60, BLACK);
-  gfx->fillRect(6, 180, 68, 60, BLACK);
-  gfx->fillRect(150, 180, 68, 60, BLACK);
 }
 
 void mainScreen() {
@@ -620,14 +531,11 @@ void mainScreen() {
   gfx->setTextSize(4);
   gfx->setCursor(260, 150);
   gfx->print(F("PROFILES"));
-
   gfx->setTextSize(2);
   gfx->setCursor(290, 200);
   gfx->print(F("PROFILE 1 "));
-
   gfx->setCursor(290, 230);
   gfx->print(F("PROFILE 2 "));
-
   gfx->setCursor(290, 260);
   gfx->print(F("PROFILE 3 "));
 
@@ -646,7 +554,6 @@ void mainScreen() {
   gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
   gfx->setCursor(420, 40);
   gfx->print(F("MPH"));
-
   gfx->setCursor(420, 100);
   gfx->print(F("m/s"));
 
@@ -662,15 +569,12 @@ void mainScreen() {
   gfx->setCursor(30, 80);
   gfx->print(display_angle[profile_num - 1][0]);
   gfx->println(F("%"));
-
   gfx->setCursor(174, 80);
   gfx->print(display_angle[profile_num - 1][1]);
   gfx->println(F("%"));
-
   gfx->setCursor(30, 220);
   gfx->print(display_angle[profile_num - 1][2]);
   gfx->println(F("%"));
-
   gfx->setCursor(174, 220);
   gfx->print(display_angle[profile_num - 1][3]);
   gfx->println(F("%"));
@@ -698,14 +602,10 @@ void mainScreen() {
 
   gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
   gfx->setTextSize(5);
-
   gfx->fillRect(260, 20, 150, 40, BLACK);
-
   gfx->setCursor(260, 20);
   gfx->print(speed, 2);
-
   gfx->fillRect(260, 80, 150, 40, BLACK);
-
   gfx->setCursor(260, 80);
   gfx->print(-1*accelY, 2);
 
