@@ -41,29 +41,9 @@ double accelY;
 double accelZ;
 int accelRange;
 
-/*
-void setup() {
-  accelerometerSetup();
-
-  gpsSetup();
-
-  printCSVHeaders();
-}
-
-void loop() {
-  checkSerialConnection();
-  accelerometerLoop();
-  gpsLoop();
-
-  delay(100);
-}*/
+void printCSVValues9600();
 
 void accelerometerSetup() {
-  while (!Serial)
-    delay(10);  // will pause Zero, Leonardo, etc until serial console opens
-
-  // Serial.println("Adafruit MPU6050 test!");
-  
   if (!mpu.begin()) {
     Serial.println("Failed to find MPU6050 chip");
     while (1) {
@@ -73,31 +53,15 @@ void accelerometerSetup() {
   Serial.println("MPU6050 Found!");
 
   mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  // Serial.print("Accelerometer range set to: ");
-  switch (mpu.getAccelerometerRange()) {
-    case MPU6050_RANGE_2_G:
-      // Serial.println("+-2G");
-      break;
-    case MPU6050_RANGE_4_G:
-      // Serial.println("+-4G");
-      break;
-    case MPU6050_RANGE_8_G:
-      // Serial.println("+-8G");
-      break;
-    case MPU6050_RANGE_16_G:
-      // Serial.println("+-16G");
-      break;
-  }
-
   accelRange = mpu.getAccelerometerRange();
 
   Serial.flush();
 }
 
-/*
+
 void gpsSetup() {
   gpsSerial.begin(9600);
-}*/
+}
 
 void accelerometerLoop() {
   Serial.begin(115200);
@@ -114,7 +78,6 @@ void accelerometerLoop() {
 }
 
 void gpsLoop() {
-
   while (gpsSerial.available() > 0) {
     if (gps.encode(gpsSerial.read())) {
       // call function to print values in CSV format
