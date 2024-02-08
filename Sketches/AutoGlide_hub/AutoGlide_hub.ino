@@ -48,22 +48,24 @@ volatile boolean interruptFlagGaugeArrow = false;
 volatile boolean interruptFlagGauge = false;
 volatile boolean interruptFlagProfile = false;
 volatile boolean interruptFlagEdit = false;
-volatile boolean interruptFlagPause = false;
 
 void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  Serial.print("passed Serial");
+
   //Graphics setup
   if (!gfx->begin()){
-    Serial.println("gfx->begin() failed!");
+    //Serial.println("gfx->begin() failed!");
   }
   gfx->fillScreen(BLACK);
 
-  serialSetup();
   accelerometerSetup();
   //gpsSetup();
-  printCSVHeaders();
+  //printCSVHeaders();
 
   CANsetup();
-
+  
   //encoder setup
   pinMode (encoderCLK, INPUT);
   pinMode (encoderDT, INPUT);
@@ -71,24 +73,30 @@ void setup() {
   encoderCLK_prev = digitalRead(encoderCLK);
   attachInterrupt(digitalPinToInterrupt(encoderCLK), shaft_moved, FALLING);
   attachInterrupt(digitalPinToInterrupt(encoderSW), buttonPressed, RISING);
+  
 
   //EEPROM setup
-  for (int i = 0; i < 14; i++){
+  /*
+  for (int i = 0; i < 13; i++){
     Serial.print("Address: ");
     Serial.print(i);
     Serial.print("  Value: ");
-    //Serial.println(EEPROM.read(i));
-  }
-  
-  for (int i = 0; i < 4; i++){ //iterate 0 -3 for profile number
-    for (int j = 0; j < 5; j++){ //iterate 0 - 4 for gauge number
-      display_angle[i][j] = EEPROM.read(i*4 + j);
+    Serial.println(EEPROM.read(i));
+    delay(100);
+    EEPROM.write(i, 0);
+    delay(100);
+    Serial.println(EEPROM.read(i));
+    delay(100);
+  }*/
+
+  for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
+    for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
+      display_angle[i][j] = EEPROM.read(i * 4 + j);
     }
   }
-  profile_num = EEPROM.read(12);
 
   //send CAN message to check real values
-  update_motor();
+  //update_motor();
 }
 
 void loop(void) {
@@ -96,31 +104,28 @@ void loop(void) {
   //gpsLoop();
   mainScreen();
 
-  while(interruptFlagPause){ //want pause screen until all thing updated
-    updateScreen();
-    interruptFlagPause = false;
-  }
+  delay(100);
 }
 
-void serialSetup(){
-  Serial.begin(115200);
-  while (!Serial);
-}
 
 void update_motor() {
+  for (int i = 0; i < 4; i++){
+    turn_done[i] = false;
+  }
   if (profile_num == 1) {// send address 0-3 to motor board 1 through 4
     for (int i = 0; i < 4; i++) {
-      SendStiffness(display_angle[profile_num - 1][i], i + 1);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i + 1);
     }
   } else if (profile_num == 2) {
     for (int i = 4; i < 8; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i], i - 3);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 3);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
     for (int i = 8; i < 12; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i], i - 7);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 7);
     }
   }
+  while (!allMotorsDone());
 }
 
 void shaft_moved(){
@@ -175,7 +180,6 @@ void shaft_moved(){
 
 void buttonPressed() {
   if (millis()-last_run > 100){
-    Serial.println("Button Pressed");
     if (arrow_pos <= 3) { //profile selection
       profile_num = arrow_pos;
       EEPROM.write(12, profile_num);
@@ -183,9 +187,10 @@ void buttonPressed() {
       interruptFlagGauge = true;
 
       //call to CAN function to change the angles if they are different
-      update_motor();
-      interruptFlagPause = true;
-
+      updateScreen();
+      delay(100);
+      //update_motor();
+      gfx->fillScreen(BLACK);
     } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
@@ -201,15 +206,17 @@ void buttonPressed() {
       interruptFlagEdit = true;
 
       //EEPROM write to commit data
-      for (int i = 0; i < 4; i++){ //iterate 0 -3 for profile number
-        for (int j = 0; j < 5; j++){ //iterate 0 - 4 for gauge number
+      for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
+        for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
           EEPROM.write(i * 4 + j, display_angle[i][j]);
         }
       }
 
       //call to CAN function to change the angles if they are different
-      update_motor();
-      interruptFlagPause = true;
+      updateScreen();
+      delay(100);
+      //update_motor();
+      gfx->fillScreen(BLACK);
     }
     last_run=millis();
   }
@@ -353,10 +360,8 @@ void updateScreen(){
   gfx->fillRect(150, 100, 200, 80, BLUE);
 
   gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->setTextSize(3);
+  gfx->setTextSize(2);
   gfx->setCursor(200, 130);
-  gfx->print(F("UPDATING STIFFNESS..."));
-
-  delay (10000);
-  gfx->fillScreen(BLACK);
+  gfx->print(F("UPDATING"));
+  //gfx->print(F("UPDATING STIFFNESS..."));
 }
