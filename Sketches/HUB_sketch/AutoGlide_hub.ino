@@ -48,7 +48,6 @@ volatile boolean interruptFlagGaugeArrow = false;
 volatile boolean interruptFlagGauge = false;
 volatile boolean interruptFlagProfile = false;
 volatile boolean interruptFlagEdit = false;
-volatile boolean interruptFlagPause = false;
 
 void setup() {
   //Graphics setup
@@ -57,10 +56,10 @@ void setup() {
   }
   gfx->fillScreen(BLACK);
 
-  serialSetup();
+  //serialSetup();
   accelerometerSetup();
   //gpsSetup();
-  printCSVHeaders();
+  //printCSVHeaders();
 
   CANsetup();
 
@@ -73,12 +72,14 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderSW), buttonPressed, RISING);
 
   //EEPROM setup
-  for (int i = 0; i < 14; i++){
+  /*
+  for (int i = 0; i < 12; i++){
     Serial.print("Address: ");
     Serial.print(i);
     Serial.print("  Value: ");
-    //Serial.println(EEPROM.read(i));
-  }
+    Serial.println(EEPROM.read(i));
+    //EEPROM.write(i, 0);
+  }*/
   
   for (int i = 0; i < 4; i++){ //iterate 0 -3 for profile number
     for (int j = 0; j < 5; j++){ //iterate 0 - 4 for gauge number
@@ -96,29 +97,25 @@ void loop(void) {
   //gpsLoop();
   mainScreen();
 
-  while(interruptFlagPause){ //want pause screen until all thing updated
-    updateScreen();
-    interruptFlagPause = false;
-  }
+  delay(100);
 }
 
 void serialSetup(){
   Serial.begin(115200);
-  while (!Serial);
 }
 
 void update_motor() {
   if (profile_num == 1) {// send address 0-3 to motor board 1 through 4
     for (int i = 0; i < 4; i++) {
-      SendStiffness(display_angle[profile_num - 1][i], i + 1);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i + 1);
     }
   } else if (profile_num == 2) {
     for (int i = 4; i < 8; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i], i - 3);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 3);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
     for (int i = 8; i < 12; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i], i - 7);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 7);
     }
   }
 }
@@ -183,9 +180,8 @@ void buttonPressed() {
       interruptFlagGauge = true;
 
       //call to CAN function to change the angles if they are different
+      updateScreen();
       update_motor();
-      interruptFlagPause = true;
-
     } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
@@ -208,8 +204,8 @@ void buttonPressed() {
       }
 
       //call to CAN function to change the angles if they are different
+      updateScreen();
       update_motor();
-      interruptFlagPause = true;
     }
     last_run=millis();
   }
@@ -353,10 +349,10 @@ void updateScreen(){
   gfx->fillRect(150, 100, 200, 80, BLUE);
 
   gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->setTextSize(3);
+  gfx->setTextSize(2);
   gfx->setCursor(200, 130);
   gfx->print(F("UPDATING STIFFNESS..."));
 
-  delay (10000);
+  //delay (10000);
   gfx->fillScreen(BLACK);
 }
