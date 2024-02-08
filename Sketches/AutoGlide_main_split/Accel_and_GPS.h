@@ -100,7 +100,6 @@ void gpsSetup() {
 }*/
 
 void accelerometerLoop() {
-  Serial.begin(115200);
   /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
@@ -109,8 +108,6 @@ void accelerometerLoop() {
   accelX = a.acceleration.x;
   accelY = a.acceleration.y;
   accelZ = a.acceleration.z;
-
-  Serial.flush();
 }
 
 void gpsLoop() {

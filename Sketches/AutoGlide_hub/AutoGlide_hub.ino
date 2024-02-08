@@ -59,6 +59,7 @@ void setup() {
   }
   gfx->fillScreen(BLACK);
 
+
   accelerometerSetup();
   //gpsSetup();
   //printCSVHeaders();
@@ -81,11 +82,6 @@ void setup() {
     Serial.print(i);
     Serial.print("  Value: ");
     Serial.println(EEPROM.read(i));
-    delay(100);
-    EEPROM.write(i, 0);
-    delay(100);
-    Serial.println(EEPROM.read(i));
-    delay(100);
   }*/
 
   for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
@@ -188,6 +184,7 @@ void buttonPressed() {
       interruptFlagGauge = true;
 
       //call to CAN function to change the angles if they are different
+      updateScreen();
       update_motor();
     } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
       save = true;
@@ -211,6 +208,7 @@ void buttonPressed() {
       }
 
       //call to CAN function to change the angles if they are different
+      updateScreen();
       update_motor();
     }
     last_run=millis();
@@ -357,6 +355,7 @@ void updateScreen(){
   gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
   gfx->setTextSize(2);
   gfx->setCursor(200, 130);
+
   gfx->print(F("UPDATING"));
   //gfx->print(F("UPDATING STIFFNESS..."));
 }
