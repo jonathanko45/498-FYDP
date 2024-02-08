@@ -52,11 +52,10 @@ volatile boolean interruptFlagEdit = false;
 void setup() {
   Serial.begin(115200);
   while(!Serial);
-  Serial.print("passed Serial");
 
   //Graphics setup
   if (!gfx->begin()){
-    //Serial.println("gfx->begin() failed!");
+    Serial.println("gfx->begin() failed!");
   }
   gfx->fillScreen(BLACK);
 
@@ -109,6 +108,7 @@ void loop(void) {
 
 
 void update_motor() {
+  updateScreen();
   for (int i = 0; i < 4; i++){
     turn_done[i] = false;
   }
@@ -121,11 +121,12 @@ void update_motor() {
       SendStiffness(display_angle[profile_num - 1][i] / 10, i - 3);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
-    for (int i = 8; i < 12; i++) { // send address 4-7 to motor board 1 through 4
+    for (int i = 8; i < 12; i++) {
       SendStiffness(display_angle[profile_num - 1][i] / 10, i - 7);
     }
   }
-  while (!allMotorsDone());
+  //while (!allMotorsDone());
+  gfx->fillScreen(BLACK);
 }
 
 void shaft_moved(){
@@ -187,10 +188,7 @@ void buttonPressed() {
       interruptFlagGauge = true;
 
       //call to CAN function to change the angles if they are different
-      updateScreen();
-      delay(100);
-      //update_motor();
-      gfx->fillScreen(BLACK);
+      update_motor();
     } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
@@ -213,10 +211,7 @@ void buttonPressed() {
       }
 
       //call to CAN function to change the angles if they are different
-      updateScreen();
-      delay(100);
-      //update_motor();
-      gfx->fillScreen(BLACK);
+      update_motor();
     }
     last_run=millis();
   }

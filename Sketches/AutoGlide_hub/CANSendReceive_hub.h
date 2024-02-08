@@ -24,7 +24,7 @@ void CANSend(byte input) {
     CAN.sendMsgBuf(0x70, 0, 4, data_count);       
 }
 
-bool CANReceiveSuccess(/*byte motorID*/) {
+bool CANReceiveSuccess(byte motorID) {
   unsigned char len = 0;
   unsigned char rxBuf[8];
   byte CANdata = 0;
@@ -36,9 +36,9 @@ bool CANReceiveSuccess(/*byte motorID*/) {
     for(int i=3; i < len; i++) {
       CANdata = rxBuf[i];
     }
-    //if(CANdata == motorID) {
-    if (CANdata > 0 && CANdata < 5){
-      turn_done[CANdata] = true;     
+    if(CANdata == motorID) {
+    //if (CANdata > 0 && CANdata < 5){
+      //turn_done[CANdata] = true;     
       return true;
     }
     else {
@@ -52,20 +52,20 @@ void SendStiffness(byte stiff, byte motorID) {
     CANSend((motorID << 4) + (stiff & 0b1111));
    
 
-    /*
+    
     while(!CANReceiveSuccess(motorID));
     
     Serial.print("Motor ");
     Serial.print(motorID);
     Serial.println(" Calibration Success");
-    */
+    
 }
 
 bool allMotorsDone() {
-  while(!CANReceiveSuccess());
+  //while(!CANReceiveSuccess());
 
   if (!(turn_done[0] == true && turn_done[1] == true && turn_done[2] == true && turn_done[3] == true)) {
-    Serial.print("Not all motors returned proper value yet");
+    Serial.println("Not all motors returned proper value yet");
     return false;
   } else {
     Serial.println("Calibration Success");
