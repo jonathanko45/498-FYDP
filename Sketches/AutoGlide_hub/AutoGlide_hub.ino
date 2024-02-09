@@ -48,6 +48,7 @@ volatile boolean interruptFlagGaugeArrow = false;
 volatile boolean interruptFlagGauge = false;
 volatile boolean interruptFlagProfile = false;
 volatile boolean interruptFlagEdit = false;
+volatile boolean interruptFlagUpdate = false;
 
 void setup() {
   Serial.begin(115200);
@@ -83,18 +84,24 @@ void setup() {
     Serial.print("  Value: ");
     Serial.println(EEPROM.read(i));
   }*/
-
+  /*
   for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
     for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
       display_angle[i][j] = EEPROM.read(i * 4 + j);
     }
-  }
+  }*/
 
   //send CAN message to check real values
   //update_motor();
 }
 
 void loop(void) {
+  if (interruptFlagUpdate){
+    updateScreen();
+    update_motor();
+    interruptFlagUpdate = false;
+  }
+
   accelerometerLoop(); //accelerometer data
   //gpsLoop();
   mainScreen();
@@ -111,17 +118,20 @@ void update_motor() {
   if (profile_num == 1) {// send address 0-3 to motor board 1 through 4
     for (int i = 0; i < 4; i++) {
       SendStiffness(display_angle[profile_num - 1][i] / 10, i + 1);
+      delay(100);
     }
   } else if (profile_num == 2) {
     for (int i = 4; i < 8; i++) { // send address 4-7 to motor board 1 through 4
       SendStiffness(display_angle[profile_num - 1][i] / 10, i - 3);
+      delay(100);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
     for (int i = 8; i < 12; i++) {
       SendStiffness(display_angle[profile_num - 1][i] / 10, i - 7);
+      delay(100);
     }
   }
-  //while (!allMotorsDone());
+  allMotorsDone();
   gfx->fillScreen(BLACK);
 }
 
@@ -184,8 +194,7 @@ void buttonPressed() {
       interruptFlagGauge = true;
 
       //call to CAN function to change the angles if they are different
-      updateScreen();
-      update_motor();
+      interruptFlagUpdate = true;
     } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
@@ -201,15 +210,15 @@ void buttonPressed() {
       interruptFlagEdit = true;
 
       //EEPROM write to commit data
+      /*
       for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
         for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
           EEPROM.write(i * 4 + j, display_angle[i][j]);
         }
-      }
+      }*/
 
       //call to CAN function to change the angles if they are different
-      updateScreen();
-      update_motor();
+      interruptFlagUpdate = true;
     }
     last_run=millis();
   }
