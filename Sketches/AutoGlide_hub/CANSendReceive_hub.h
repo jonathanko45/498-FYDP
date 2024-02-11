@@ -37,8 +37,8 @@ bool CANReceiveSuccess() {
       CANdata = rxBuf[i];
     }
     if (CANdata >= 1 && CANdata <= 4){
-      Serial.print("turn done true for motor: ");
-      Serial.println(CANdata);
+      //Serial.print("turn done true for motor: ");
+      //Serial.println(CANdata);
       turn_done[CANdata - 1] = true;     
       return true;
     }

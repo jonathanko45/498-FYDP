@@ -29,9 +29,9 @@ unsigned long last_run = 0;
 
 //gauge angle matrix
 int display_angle[3][4] = {
-                          {0,0,0,0},
-                          {0,0,0,0},
-                          {0,0,0,0}
+                          {10,10,10,10},
+                          {50,50,50,50},
+                          {90,90,90,90}
                           };
 
 
@@ -62,8 +62,8 @@ void setup() {
 
 
   accelerometerSetup();
-  //gpsSetup();
-  //printCSVHeaders();
+  gpsSetup();
+  printCSVHeaders();
 
   CANsetup();
   
@@ -97,13 +97,14 @@ void setup() {
 
 void loop(void) {
   if (interruptFlagUpdate){
+    Serial.println("Changing stiffness...");
     updateScreen();
     update_motor();
     interruptFlagUpdate = false;
   }
 
   accelerometerLoop(); //accelerometer data
-  //gpsLoop();
+  gpsLoop();
   mainScreen();
 
   delay(100);
@@ -118,17 +119,17 @@ void update_motor() {
   if (profile_num == 1) {// send address 0-3 to motor board 1 through 4
     for (int i = 0; i < 4; i++) {
       SendStiffness(display_angle[profile_num - 1][i] / 10, i + 1);
-      delay(100);
+      Serial.println(display_angle[profile_num - 1][i] / 10);
     }
   } else if (profile_num == 2) {
     for (int i = 4; i < 8; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 3);
-      delay(100);
+      SendStiffness(display_angle[profile_num - 1][i - 4] / 10, i - 3);
+      Serial.println(display_angle[profile_num - 1][i - 4] / 10);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
     for (int i = 8; i < 12; i++) {
-      SendStiffness(display_angle[profile_num - 1][i] / 10, i - 7);
-      delay(100);
+      SendStiffness(display_angle[profile_num - 1][i - 8] / 10, i - 7);
+      Serial.println(display_angle[profile_num - 1][i - 8] / 10);
     }
   }
   allMotorsDone();
