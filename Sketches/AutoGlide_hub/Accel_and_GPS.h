@@ -155,6 +155,7 @@ void printCSVValues9600() {
   }
 
   if (gps.speed.isValid()) {
+    speed = gps.speed.kmph();
     Serial.print(gps.speed.kmph());
     Serial.print(",");
   } else {

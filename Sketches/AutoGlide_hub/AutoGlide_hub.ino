@@ -52,7 +52,7 @@ volatile boolean interruptFlagUpdate = false;
 
 void setup() {
   Serial.begin(115200);
-  while(!Serial);
+  //while(!Serial);
 
   //Graphics setup
   if (!gfx->begin()){
@@ -254,9 +254,12 @@ void mainScreen() {
 
   gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
   gfx->setCursor(420, 40);
-  gfx->print(F("MPH"));
+  gfx->print(F("KPH"));
   gfx->setCursor(420, 100);
   gfx->print(F("m/s"));
+  gfx->setCursor(460, 94);
+  gfx->setTextSize(1);
+  gfx->print(F("2"));
 
   if (interruptFlagProfile) {
     gfx->fillRect(156, 280, 20, 20, BLACK); //profile
@@ -305,7 +308,7 @@ void mainScreen() {
   gfx->setTextSize(5);
   gfx->fillRect(260, 20, 150, 40, BLACK);
   gfx->setCursor(260, 20);
-  gfx->print(speed, 2);
+  gfx->print(speed, 1);
   gfx->fillRect(260, 80, 150, 40, BLACK);
   gfx->setCursor(260, 80);
   gfx->print(-1*accelY, 2);
