@@ -2,7 +2,6 @@
 #include "Accel_and_GPS.h"
 #include "CANSendReceive_hub.h"
 
-//#include <U8g2lib.h>
 #include <Arduino_GFX_Library.h>
 
 #define TFT_CS 10    //D10 or SS
@@ -28,19 +27,27 @@ unsigned long last_run = 0;
 
 
 //gauge angle matrix
-int display_angle[3][4] = {
+int display_angle[4][4] = {
                           {10,10,10,10},
                           {50,50,50,50},
-                          {90,90,90,90}
+                          {90,90,90,90},
+                          {10,10,10,10}
                           };
 
 
 //main loop variables
-int8_t profile_num = 1; //1 to 3
-int8_t arrow_pos = 1; //1 to 4
+int8_t profile_num = 1; //1 to 4
+int8_t arrow_pos = 1; //1 to 5
 int8_t editAngleNum = 0; //1 to 5, 5 is save, 0 is off
 boolean save = false;
 boolean editAngle = false;
+volatile int graphLoop = 0;
+float graphY = 0;
+float Y_val = 0;
+float avgAccel[34];
+float upperLim = 25;
+int strike = 0;
+
 
 //interupt variables
 volatile boolean interruptFlagArrow = false;
@@ -49,6 +56,8 @@ volatile boolean interruptFlagGauge = false;
 volatile boolean interruptFlagProfile = false;
 volatile boolean interruptFlagEdit = false;
 volatile boolean interruptFlagUpdate = false;
+volatile boolean interruptFlagAuto = false;
+volatile boolean interruptFlagAutoRefresh = false;
 
 void setup() {
   Serial.begin(115200);
@@ -59,7 +68,6 @@ void setup() {
     Serial.println("gfx->begin() failed!");
   }
   gfx->fillScreen(BLACK);
-
 
   accelerometerSetup();
   gpsSetup();
@@ -75,7 +83,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderCLK), shaft_moved, FALLING);
   attachInterrupt(digitalPinToInterrupt(encoderSW), buttonPressed, RISING);
   
-
   //EEPROM setup
   /*
   for (int i = 0; i < 13; i++){
@@ -85,29 +92,35 @@ void setup() {
     Serial.println(EEPROM.read(i));
   }*/
   /*
-  for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
+  for (int i = 0; i < 4; i++){ //iterate 0 - 3 for profile number
     for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
       display_angle[i][j] = EEPROM.read(i * 4 + j);
     }
   }*/
-
-  //send CAN message to check real values
-  //update_motor();
 }
 
 void loop(void) {
   if (interruptFlagUpdate){
     Serial.println("Changing stiffness...");
-    updateScreen();
     update_motor();
     interruptFlagUpdate = false;
   }
-
+ 
   accelerometerLoop(); //accelerometer data
   gpsLoop();
+
   mainScreen();
 
-  delay(100);
+  if (interruptFlagAuto){
+    if (graphLoop == 34){
+      autoProfile();
+      graphLoop = 0;
+    } else {
+      graphLoop++;
+      graph();
+    }
+  } 
+  delay(100); //refresh rate
 }
 
 
@@ -153,7 +166,14 @@ void shaft_moved(){
           editAngleNum++;
         }
         interruptFlagGaugeArrow = true;
-      } else if (!editAngleNum && !editAngle) {
+      } else if (!editAngleNum && !editAngle && !interruptFlagAuto) {
+        if (arrow_pos == 5) {
+          arrow_pos = 1;
+        } else {
+          arrow_pos++;
+        }
+        interruptFlagArrow = true;
+      } else if (!editAngleNum && !editAngle ) {
         if (arrow_pos == 4) {
           arrow_pos = 1;
         } else {
@@ -173,6 +193,13 @@ void shaft_moved(){
           editAngleNum--;
         }
         interruptFlagGaugeArrow = true;
+      } else if (!editAngleNum && !editAngle && !interruptFlagAuto) {
+        if (arrow_pos == 1) {
+          arrow_pos = 5;
+        } else {
+          arrow_pos--;
+        }
+        interruptFlagArrow = true;
       } else if (!editAngleNum && !editAngle) {
         if (arrow_pos == 1) {
           arrow_pos = 4;
@@ -188,15 +215,30 @@ void shaft_moved(){
 
 void buttonPressed() {
   if (millis()-last_run > 100){
-    if (arrow_pos <= 3) { //profile selection
-      profile_num = arrow_pos;
-      EEPROM.write(12, profile_num);
-      interruptFlagProfile = true;
-      interruptFlagGauge = true;
+    if (arrow_pos <= 4) { //profile selection
+      if (arrow_pos == 4 && !interruptFlagAuto){
+        interruptFlagAuto = true;
+        graphLoop = 0;
+        interruptFlagAutoRefresh = true;
+        profile_num = arrow_pos;
+      } else if (arrow_pos == 4 && interruptFlagAuto) {
+        interruptFlagAuto = false;
+        interruptFlagAutoRefresh = true;
+        profile_num = arrow_pos;
+      } else {
+        if (profile_num == 4) {
+          interruptFlagAutoRefresh = true;
+        }
+        profile_num = arrow_pos;
+        //EEPROM.write(12, profile_num);
+        interruptFlagProfile = true;
+        interruptFlagAuto = false;
 
-      //call to CAN function to change the angles if they are different
-      interruptFlagUpdate = true;
-    } else if (arrow_pos == 4 && editAngleNum == 0){ //turning on edit mode
+        //call to CAN function to change the angles if they are different
+        interruptFlagUpdate = true;
+      }
+      interruptFlagGauge = true;
+    } else if (arrow_pos == 5 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
       interruptFlagEdit = true;
@@ -212,7 +254,7 @@ void buttonPressed() {
 
       //EEPROM write to commit data
       /*
-      for (int i = 0; i < 3; i++){ //iterate 0 - 2 for profile number
+      for (int i = 0; i < 4; i++){ //iterate 0 - 3 for profile number
         for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
           EEPROM.write(i * 4 + j, display_angle[i][j]);
         }
@@ -225,20 +267,101 @@ void buttonPressed() {
   }
 }
 
-void mainScreen() {
-  //gfx->setFont(u8g2_font_Pixellari_tu);
+void graph(){
+  gfx->setTextSize(1);
   gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+  gfx->fillRect(260, 20, 2, 110, WHITE); //y-axis line
+  gfx->fillRect(262, 50, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //upper lim
+  
+  gfx->fillRect(262, 75, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //middle x-axis
+  gfx->fillRect(256, 75, 6, 2, gfx->color565(0xff, 0xff, 0xff));
+  gfx->setCursor(236, 70);
+  gfx->print(F("9.8"));
 
-  gfx->setTextSize(4);
+  gfx->fillRect(262, 100, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //lower lim
+ 
+  graphY = 2.3 * sq(abs(-1*accelY - 9.8)); //multiplied by ratio 2.3 for sensitivity
+  avgAccel[graphLoop] = graphY;
+
+  if (graphY >= 55){
+    Y_val = 55;
+  } else {
+    Y_val = graphY;
+  }
+  if (accelY + 9.8 >= 0) {
+    gfx->fillRect(258 + 6*graphLoop, (75 + Y_val - 2), 4, 4, gfx->color565(0xe4, 0x2b, 0x37));
+  } else if (accelY + 9.8 < 0){
+    gfx->fillRect(268 + 6*graphLoop, (75 - Y_val), 4, 4, gfx->color565(0xe4, 0x2b, 0x37));
+  }
+}
+
+void autoProfile(){
+  //if difference between each value in last ~34 sec is large (greater than X strikes) -> soften
+  //if difference between each value in last ~34 sec is small (fewer than Y strikes) -> stiffen
+
+  for (int i = 0; i < 35; i++){
+    if (avgAccel[i] >= upperLim){
+      strike++;
+    } 
+  }
+  if (strike >= 5) {
+    if (display_angle[3][0] > 50 ||  display_angle[3][1] > 50 || display_angle[3][2] > 50 || display_angle[3][3] > 50) { //soften by 1 level
+      display_angle[3][0] = 50;
+      display_angle[3][1] = 50;
+      display_angle[3][2] = 50;
+      display_angle[3][3] = 50;
+      interruptFlagUpdate = true;
+    } else if (display_angle[3][0] > 10 ||  display_angle[3][1] > 10 || display_angle[3][2] > 10 || display_angle[3][3] > 10){ //soften by 2 levels
+      display_angle[3][0] = 10;
+      display_angle[3][1] = 10;
+      display_angle[3][2] = 10;
+      display_angle[3][3] = 10;
+      interruptFlagUpdate = true;
+    }
+    
+  } else if (strike <= 2) {
+    if (display_angle[3][0] < 50 ||  display_angle[3][1] < 50 || display_angle[3][2] < 50 || display_angle[3][3] < 50) { //tighten by 1 level
+      display_angle[3][0] = 50;
+      display_angle[3][1] = 50;
+      display_angle[3][2] = 50;
+      display_angle[3][3] = 50;
+      interruptFlagUpdate = true;
+    } else if (display_angle[3][0] < 90 ||  display_angle[3][1] < 90 || display_angle[3][2] < 90 || display_angle[3][3] < 90) { //tighten by 2 levels
+      display_angle[3][0] = 90;
+      display_angle[3][1] = 90;
+      display_angle[3][2] = 90;
+      display_angle[3][3] = 90;
+      interruptFlagUpdate = true;
+    }
+  }
+  strike = 0;
+  gfx->fillRect(262, 20, 280, 116, BLACK);
+}
+
+void mainScreen() {
+  gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+  gfx->setTextSize(3);
   gfx->setCursor(260, 150);
   gfx->print(F("PROFILES"));
   gfx->setTextSize(2);
-  gfx->setCursor(290, 200);
-  gfx->print(F("PROFILE 1 "));
-  gfx->setCursor(290, 230);
-  gfx->print(F("PROFILE 2 "));
-  gfx->setCursor(290, 260);
-  gfx->print(F("PROFILE 3 "));
+  gfx->setCursor(290, 186);
+  gfx->print(F("PROFILE 1"));
+  gfx->setCursor(290, 212);
+  gfx->print(F("PROFILE 2"));
+  gfx->setCursor(290, 238);
+  gfx->print(F("PROFILE 3"));
+  gfx->setCursor(290, 264);
+  if (interruptFlagAuto){
+    gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
+  } 
+  gfx->print(F("AUTO"));
+  gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+
+  if (interruptFlagAutoRefresh) {
+    gfx->fillRect(230, 10, 290, 180, BLACK); //for graph
+    gfx->fillRect(30, 280, 200, 30, BLACK); //for profile 
+    interruptFlagAutoRefresh = false;
+  }
 
   if (interruptFlagEdit) {
     gfx->fillRect(290, 290, 50, 22, BLACK); //edit-save
@@ -252,22 +375,41 @@ void mainScreen() {
     gfx->print(F("SAVE"));
   }
 
-  gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
-  gfx->setCursor(420, 40);
-  gfx->print(F("KPH"));
-  gfx->setCursor(420, 100);
-  gfx->print(F("m/s"));
-  gfx->setCursor(460, 94);
-  gfx->setTextSize(1);
-  gfx->print(F("2"));
+  if (!interruptFlagAuto){
+    gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+    gfx->setCursor(420, 40);
+    gfx->print(F("KPH"));
+    gfx->setCursor(420, 100); //labels
+    gfx->print(F("m/s"));
+    gfx->setCursor(460, 94);
+    gfx->setTextSize(1);
+    gfx->print(F("2"));
+
+    gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37)); //values
+    gfx->setTextSize(5);
+    gfx->fillRect(260, 80, 150, 40, BLACK);
+    gfx->setCursor(260, 80);
+    gfx->print(-1*accelY, 2);
+
+    gfx->fillRect(260, 20, 150, 40, BLACK);
+    gfx->setCursor(260, 20);
+    gfx->print(speed, 1);
+  }
 
   if (interruptFlagProfile) {
-    gfx->fillRect(156, 280, 20, 20, BLACK); //profile
+    gfx->fillRect(170, 280, 24, 24, BLACK); //profile
     interruptFlagProfile = false;
   }
-  gfx->setCursor(60, 280);
-  gfx->print(F("PROFILE "));
-  gfx->println(profile_num);
+  gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+  gfx->setTextSize(3); 
+  if (profile_num <= 3){
+    gfx->setCursor(30, 280);
+    gfx->print(F("PROFILE "));
+    gfx->println(profile_num);
+  } else if (profile_num == 4){
+    gfx->setCursor(64, 280);
+    gfx->print(F("AUTO"));
+  }
 
   gfx->setTextSize(1);
   gfx->setCursor(30, 80);
@@ -300,39 +442,35 @@ void mainScreen() {
     gfx->print(F("->"));
   } else if (editAngleNum == 5) {
     gfx->setTextSize(2);
-    gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
+    gfx->setCursor(260, (186 + 26 * (arrow_pos - 1)));
     gfx->print(F("->"));
   }
-
-  gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->setTextSize(5);
-  gfx->fillRect(260, 20, 150, 40, BLACK);
-  gfx->setCursor(260, 20);
-  gfx->print(speed, 1);
-  gfx->fillRect(260, 80, 150, 40, BLACK);
-  gfx->setCursor(260, 80);
-  gfx->print(-1*accelY, 2);
 
   if (!save){
     if (interruptFlagArrow) {
       if (arrow_pos == 1) {
-        gfx->fillRect(260, 220, 22, 100, BLACK);
+        gfx->fillRect(260, 200, 22, 110, BLACK);
       }
       else if (arrow_pos == 2) {
-        gfx->fillRect(260, 200, 22, 26, BLACK);
-        gfx->fillRect(260, 250, 22, 80, BLACK);
+        gfx->fillRect(260, 180, 22, 24, BLACK);
+        gfx->fillRect(260, 230, 22, 80, BLACK);
       } 
       else if (arrow_pos == 3) {
-        gfx->fillRect(260, 200, 22, 50, BLACK);
-        gfx->fillRect(260, 280, 22, 26, BLACK);
+        gfx->fillRect(260, 180, 22, 50, BLACK);
+        gfx->fillRect(260, 260, 22, 50, BLACK);
       }
       else if (arrow_pos == 4) {
-        gfx->fillRect(260, 200, 22, 80, BLACK);
+        gfx->fillRect(260, 180, 22, 80, BLACK);
+        gfx->fillRect(260, 280, 22, 30, BLACK);
+      }
+      else if (arrow_pos == 5) {
+        gfx->fillRect(260, 180, 22, 100, BLACK);
       }
       interruptFlagArrow = false;
     }
     gfx->setTextSize(2);
-    gfx->setCursor(260, (200 + 30 * (arrow_pos - 1)));
+    gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
+    gfx->setCursor(260, (186 + 26 * (arrow_pos - 1)));
     gfx->print(F("->"));
   }
 
@@ -353,9 +491,7 @@ void mainScreen() {
     }
     interruptFlagGauge = false;
   }
-  //390 end - 150 start = 240
-  //240 div by 30 = 8 degree sections
-  //fillArc       ( x, y, r0, r1, angle0, angle1, color);
+
   gfx->fillArc(40, 80, 33, 30, 150, 150 + (display_angle[profile_num - 1][0] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
   gfx->fillArc(184, 80, 33, 30, 150, 150 + (display_angle[profile_num - 1][1] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
   gfx->fillArc(40, 220, 33, 30, 150, 150 + (display_angle[profile_num - 1][2] / 100.00) * 240, gfx->color565(0xe4, 0x2b, 0x37));
@@ -363,12 +499,9 @@ void mainScreen() {
 }
 
 void updateScreen(){
-  gfx->fillRect(150, 100, 200, 80, BLUE);
-
-  gfx->setTextColor(gfx->color565(0xe4, 0x2b, 0x37));
-  gfx->setTextSize(2);
-  gfx->setCursor(200, 130);
-
+  gfx->fillRect(100, 100, 290, 120, BLUE);
+  gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
+  gfx->setTextSize(4);
+  gfx->setCursor(150, 150); 
   gfx->print(F("UPDATING"));
-  //gfx->print(F("UPDATING STIFFNESS..."));
 }
