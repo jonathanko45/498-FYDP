@@ -96,7 +96,7 @@ void setup() {
 void loop(void) {
   if (interruptFlagUpdate){
     Serial.println("Changing stiffness...");
-    //update_motor();
+    update_motor();
     interruptFlagUpdate = false;
   }
  
@@ -273,7 +273,7 @@ void graph(){
 
   gfx->fillRect(262, 100, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //lower lim value 100
  
-  graphY = 2.3 * sq(abs(-1*accelY - 9.8)); //multiplied by ratio 2.3 for sensitivity
+  graphY = 2 * sq(abs(-1*accelY - 9.8)); //multiplied by ratio 2 for sensitivity
   avgAccel[graphLoop] = graphY;
 
   if (graphY >= 55){ //keep data points from going beyond limits of graph visually
