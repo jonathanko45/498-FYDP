@@ -61,7 +61,6 @@ volatile boolean interruptFlagAutoRefresh = false;
 
 void setup() {
   Serial.begin(115200);
-  //while(!Serial);
 
   //Graphics setup
   if (!gfx->begin()){
@@ -81,28 +80,23 @@ void setup() {
   pinMode(encoderSW, INPUT_PULLUP);
   encoderCLK_prev = digitalRead(encoderCLK);
   attachInterrupt(digitalPinToInterrupt(encoderCLK), shaft_moved, FALLING);
-  attachInterrupt(digitalPinToInterrupt(encoderSW), buttonPressed, RISING);
+  attachInterrupt(digitalPinToInterrupt(encoderSW), button_pressed, RISING);
   
   //EEPROM setup
-  /*
-  for (int i = 0; i < 13; i++){
-    Serial.print("Address: ");
-    Serial.print(i);
-    Serial.print("  Value: ");
-    Serial.println(EEPROM.read(i));
-  }*/
-  /*
   for (int i = 0; i < 4; i++){ //iterate 0 - 3 for profile number
     for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
       display_angle[i][j] = EEPROM.read(i * 4 + j);
     }
-  }*/
+  }
+  profile_num = EEPROM.read(16); //startup profile
+  arrow_pos = EEPROM.read(16);
+
 }
 
 void loop(void) {
   if (interruptFlagUpdate){
     Serial.println("Changing stiffness...");
-    update_motor();
+    //update_motor();
     interruptFlagUpdate = false;
   }
  
@@ -122,7 +116,6 @@ void loop(void) {
   } 
   delay(100); //refresh rate
 }
-
 
 void update_motor() {
   updateScreen();
@@ -213,7 +206,7 @@ void shaft_moved(){
   }
 }
 
-void buttonPressed() {
+void button_pressed() {
   if (millis()-last_run > 100){
     if (arrow_pos <= 4) { //profile selection
       if (arrow_pos == 4 && !interruptFlagAuto){
@@ -230,7 +223,7 @@ void buttonPressed() {
           interruptFlagAutoRefresh = true;
         }
         profile_num = arrow_pos;
-        //EEPROM.write(12, profile_num);
+        
         interruptFlagProfile = true;
         interruptFlagAuto = false;
 
@@ -238,6 +231,7 @@ void buttonPressed() {
         interruptFlagUpdate = true;
       }
       interruptFlagGauge = true;
+      EEPROM.write(16, profile_num);
     } else if (arrow_pos == 5 && editAngleNum == 0){ //turning on edit mode
       save = true;
       editAngleNum = 1;
@@ -253,12 +247,11 @@ void buttonPressed() {
       interruptFlagEdit = true;
 
       //EEPROM write to commit data
-      /*
       for (int i = 0; i < 4; i++){ //iterate 0 - 3 for profile number
         for (int j = 0; j < 4; j++){ //iterate 0 - 3 for gauge number
           EEPROM.write(i * 4 + j, display_angle[i][j]);
         }
-      }*/
+      }
 
       //call to CAN function to change the angles if they are different
       interruptFlagUpdate = true;
@@ -271,19 +264,19 @@ void graph(){
   gfx->setTextSize(1);
   gfx->setTextColor(gfx->color565(0xff, 0xff, 0xff));
   gfx->fillRect(260, 20, 2, 110, WHITE); //y-axis line
-  gfx->fillRect(262, 50, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //upper lim
+  gfx->fillRect(262, 50, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //upper lim value 50
   
   gfx->fillRect(262, 75, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //middle x-axis
   gfx->fillRect(256, 75, 6, 2, gfx->color565(0xff, 0xff, 0xff));
   gfx->setCursor(236, 70);
   gfx->print(F("9.8"));
 
-  gfx->fillRect(262, 100, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //lower lim
+  gfx->fillRect(262, 100, 204, 1, gfx->color565(0x80, 0x80, 0x80)); //lower lim value 100
  
   graphY = 2.3 * sq(abs(-1*accelY - 9.8)); //multiplied by ratio 2.3 for sensitivity
   avgAccel[graphLoop] = graphY;
 
-  if (graphY >= 55){
+  if (graphY >= 55){ //keep data points from going beyond limits of graph visually
     Y_val = 55;
   } else {
     Y_val = graphY;
@@ -407,7 +400,7 @@ void mainScreen() {
     gfx->print(F("PROFILE "));
     gfx->println(profile_num);
   } else if (profile_num == 4){
-    gfx->setCursor(64, 280);
+    gfx->setCursor(74, 280);
     gfx->print(F("AUTO"));
   }
 
