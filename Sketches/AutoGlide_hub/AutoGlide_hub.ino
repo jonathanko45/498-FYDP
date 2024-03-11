@@ -124,17 +124,17 @@ void update_motor() {
   }
   if (profile_num == 1) {// send address 0-3 to motor board 1 through 4
     for (int i = 0; i < 4; i++) {
-      SendStiffness(display_angle[profile_num - 1][i] / 10, i + 1);
+      SendStiffness(display_angle[profile_num - 1][i] / 10, 3);
       Serial.println(display_angle[profile_num - 1][i] / 10);
     }
   } else if (profile_num == 2) {
     for (int i = 4; i < 8; i++) { // send address 4-7 to motor board 1 through 4
-      SendStiffness(display_angle[profile_num - 1][i - 4] / 10, i - 3);
+      SendStiffness(display_angle[profile_num - 1][i - 4] / 10, 3);
       Serial.println(display_angle[profile_num - 1][i - 4] / 10);
     }
   } else if (profile_num == 3) { // send address 8-11 to motor board 1 through 4
     for (int i = 8; i < 12; i++) {
-      SendStiffness(display_angle[profile_num - 1][i - 8] / 10, i - 7);
+      SendStiffness(display_angle[profile_num - 1][i - 8] / 10, 3);
       Serial.println(display_angle[profile_num - 1][i - 8] / 10);
     }
   }
