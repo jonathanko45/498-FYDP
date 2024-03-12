@@ -143,6 +143,9 @@ void update_motor() {
       SendStiffness(display_angle[profile_num - 1][i - 8] / 10, 3);
       Serial.println(display_angle[profile_num - 1][i - 8] / 10);
     }*/
+  } else if (profile_num == 4) {
+    SendStiffness(display_angle[profile_num - 1][2] / 10, 3);
+    Serial.println(display_angle[profile_num - 1][2] / 10);
   }
   allMotorsDone();
   gfx->fillScreen(BLACK);
