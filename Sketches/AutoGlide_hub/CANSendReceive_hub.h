@@ -36,6 +36,8 @@ bool CANReceiveSuccess() {
     for(int i=3; i < len; i++) {
       CANdata = rxBuf[i];
     }
+    Serial.println(turn_done[2]);
+    Serial.print(CANdata);
     if (CANdata == 3){
       //turn_done[CANdata - 1] = true;
       turn_done[0] = true;
