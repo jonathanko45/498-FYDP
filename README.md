@@ -14,6 +14,9 @@ Repo of KiCad PCB files: https://cadlab.io/project/27380/master/files
 ### Block Diagram
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Block%20diagram.png)
 
+### Enclosure CAD
+![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Enclosure.png)
+
 ### Coilover Systems
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Coilover%20control%20system.png)
 
