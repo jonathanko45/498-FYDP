@@ -14,11 +14,14 @@ Repo of KiCad PCB files: https://cadlab.io/project/27380/master/files
 ### Block Diagram
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Block%20diagram.png)
 
+### Symposium Poster
+![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/2024.26.Poster.png)
+
 ### Enclosure CAD
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Enclosure.png)
 
 ### Coilover Systems
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Coilover%20control%20system.png)
 
-### Centra Hub
+### Central Hub
 ![alt text](https://github.com/jonathanko45/498-FYDP/blob/main/media/Control%20hub.png)
